@@ -3,9 +3,6 @@
 # 12/28/2017
 # Jeff Morgan, Prahlad G Menon, PhD
 
-## Clear Summary data before serving this app up! 
-    # rm(list=c("responses"))
-
 library(shinydashboard)
 require(dplyr)
 require(FluSight)
@@ -14,7 +11,6 @@ library(plotly)
 library(shinyjs)
 
 ## Global functions
-# dir_2018 <- "../../FluSight-forecastsX/2017-2018/Delphi-Epicast/"
 dir_2018 <- "Forecasts/2017-2018/Delphi-Epicast/"
 
 source('readFluViewGTdata.R')
@@ -162,11 +158,13 @@ ui <- dashboardPage(
   )
 )
 
+# tabpanel("Directions")
+
 # Define the fields we want to save from the form
 fields <- c("name", "TopTeam", "Remarks")
 
 server <- function(input, output,session) {
-  
+   
   output$downloadVotes <- downloadHandler(
     filename = function() { 
       paste("Votes_",Sys.Date(), '.csv', sep='')
@@ -179,7 +177,7 @@ server <- function(input, output,session) {
         colnames(ToWrite) <- c("Forecast Week", "Respondent Name", "REGION","TARGET", "Voted Team", "Remarks", "Score", "Submission Date/Time")
       })
       
-      if (input$DownloadPassword == "PasswordForThisApp") {
+      if (input$DownloadPassword == "JeffsPassword") {
         write.csv(ToWrite, file, row.names = F)
       } else {
         write.csv(as.data.frame("Error" = "PASSWORD INCORECT!"), file, row.names = F)
@@ -265,8 +263,6 @@ server <- function(input, output,session) {
             plot( y =fctemp$value[order(as.numeric(fctemp$bin_start_incl))], 
                   x=as.numeric(fctemp$bin_start_incl[order(as.numeric(fctemp$bin_start_incl))]), type="l",
                   xlab = "Bin", ylab = "Value", main = paste(j, i, ": Kernel Density Plots"),
-                  # xlim = c(0,8), 
-                  # ylim = c(0,1.1*max(fctemp$value)))
                   ylim = c(0, 0.75))
           } else {
             fctemp <- forecast_data[(forecast_data$target==i) & (forecast_data$location==j),]
@@ -331,12 +327,6 @@ server <- function(input, output,session) {
           
           if (dir_2018==AllTEAMS[1]) { 
             fctemp <<- forecast_data[(forecast_data$target==i) & (forecast_data$location==j),]
-            # plot( y =fctemp$value[order(as.numeric(fctemp$bin_start_incl))], 
-            #       x=as.numeric(fctemp$bin_start_incl[order(as.numeric(fctemp$bin_start_incl))]), type="l",
-            #       xlab = "Bin", ylab = "Value", main = paste(j, i, ": Kernel Density Plots"),
-            #       # xlim = c(0,8), 
-            #       # ylim = c(0,1.1*max(fctemp$value)))
-            #       ylim = c(0, 0.75))
             
             if (input$TARGET %in% c( "Season onset" ,"Season peak week")) {
               if (input$PlotType %in% c("Line chart")) {
@@ -357,19 +347,17 @@ server <- function(input, output,session) {
               }
             } else {
               
-              # print(sub(".*? (.+)", "\\1", input$REGION))
-              
               ## Compute Scoring by bin ranges
               if (input$REGION %in% "US National") {
-                temp1 <- as.data.frame(ili_df_National[((ili_df_National$week==(as.numeric(forecast_week)+1))),])  ## GENERALIZE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                print(as.data.frame(ili_df_National[((ili_df_National$week==(as.numeric(forecast_week)+1))),]))
+                temp1 <- as.data.frame(ili_df_National[((ili_df_National$week==(as.numeric(forecast_week)+as.numeric(substring(input$TARGET, 1, 1))))),]) 
+                print(as.data.frame(ili_df_National[((ili_df_National$week==(as.numeric(forecast_week)+as.numeric(substring(input$TARGET, 1, 1))))),]))
               } else {
-                temp1 <- as.data.frame(ili_df_HHS[((ili_df_HHS$week==(as.numeric(forecast_week)+1))&(ili_df_HHS$region==sub(".*? (.+)", "\\1", input$REGION))),])  ## GENERALIZE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                print(as.data.frame(ili_df_HHS[((ili_df_HHS$week==(as.numeric(forecast_week)+1))&(ili_df_HHS$region==sub(".*? (.+)", "\\1", input$REGION))),]))
+                temp1 <- as.data.frame(ili_df_HHS[((ili_df_HHS$week==(as.numeric(forecast_week)+as.numeric(substring(input$TARGET, 1, 1))))&(ili_df_HHS$region==sub(".*? (.+)", "\\1", input$REGION))),])  
+                print(as.data.frame(ili_df_HHS[((ili_df_HHS$week==(as.numeric(forecast_week)+as.numeric(substring(input$TARGET, 1, 1))))&(ili_df_HHS$region==sub(".*? (.+)", "\\1", input$REGION))),]))
               } 
               
               targetRow <- which(((fctemp$bin_start_incl<temp1$weighted_ili)&(fctemp$bin_end_notincl>temp1$weighted_ili)))
-              # print(targetRow)
+              
               if (length(targetRow) == 0) {
                 COMPARISON_GT_POINTS <<- NA
               } else {
@@ -398,26 +386,23 @@ server <- function(input, output,session) {
               if (input$PlotType %in% c("Line chart")) {
                 xtemp <<- as.numeric(fctemp$bin_start_incl[order(as.numeric(fctemp$bin_start_incl))])
                 ytemp <<- fctemp$value[order(as.numeric(fctemp$bin_start_incl))]
-                
-				p<-add_trace(p,  y=ytemp[c(21:33,1:20)], 
-                             x=as.data.frame(as.character(paste(xtemp[c(21:33,1:20)])),stringsAsFactors = F), 
+                p<-add_trace(p,  y=ytemp[c(21:33,1:20)], 
+                             x=as.data.frame(as.character(paste(xtemp[c(21:33,1:20)])),stringsAsFactors = F), #as.data.frame(1:length(ytemp)) , 
                              type="scatter", mode="lines", name = TeamNames[TeamCount])
               } else {
                 xtemp <<- as.numeric(fctemp$bin_start_incl[order(as.numeric(fctemp$bin_start_incl))])
                 ytemp <<- fctemp$value[order(as.numeric(fctemp$bin_start_incl))]
-                
-				p<-add_trace(p,  y= ytemp[c(21:33,1:20)], 
-                             x=as.data.frame(as.character(paste(xtemp[c(21:33,1:20)])),stringsAsFactors = F), 
+                p<-add_trace(p,  y= ytemp[c(21:33,1:20)], 
+                             x=as.data.frame(as.character(paste(xtemp[c(21:33,1:20)])),stringsAsFactors = F), #as.data.frame(1:length(ytemp)) , 
                              type="bar", name = TeamNames[TeamCount])
               }
             } else {
               
               ## Compute Scoring by bin ranges
               if (input$REGION %in% "US National") {
-                temp1 <- as.data.frame(ili_df_National[((ili_df_National$week==(as.numeric(forecast_week)+1))),])  
+                temp1 <- as.data.frame(ili_df_National[((ili_df_National$week==(as.numeric(forecast_week)+as.numeric(substring(input$TARGET, 1, 1))))),])  
               } else {
-                temp1 <- as.data.frame(ili_df_HHS[((ili_df_HHS$week==(as.numeric(forecast_week)+1))&(ili_df_HHS$region==sub(".*? (.+)", "\\1", input$REGION))),])  
-				
+                temp1 <- as.data.frame(ili_df_HHS[((ili_df_HHS$week==(as.numeric(forecast_week)+as.numeric(substring(input$TARGET, 1, 1))))&(ili_df_HHS$region==sub(".*? (.+)", "\\1", input$REGION))),])  ## 
               } 
               targetRow <- which(((fctemp$bin_start_incl<temp1$weighted_ili)&(fctemp$bin_end_notincl>temp1$weighted_ili)))
               
@@ -458,8 +443,8 @@ server <- function(input, output,session) {
       nticks=48
     )
     
-    p <- p %>% layout(xaxis = list(nticks=48), yaxis = list(nticks=10))
-   
+      p <- p %>% layout(xaxis = list(nticks=48), yaxis = list(nticks=10))
+	      
     p
     
   })
